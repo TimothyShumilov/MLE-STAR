@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mle-star"
+version = "0.1.0"
+description = "Multi-Agent ML Engineering with Search and Targeted Refinement"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "MLE-STAR Team"}
+]
+keywords = ["ml", "agents", "automation", "kaggle", "machine-learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "torch>=2.0.0",
+    "transformers>=4.35.0",
+    "accelerate>=0.24.0",
+    "bitsandbytes>=0.41.0",
+    "sentencepiece>=0.1.99",
+    "aiohttp>=3.9.0",
+    "openai>=1.0.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+    "psutil>=5.9.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "dataclasses-json>=0.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+]
+docker = [
+    "docker>=6.1.0",
+]
+viz = [
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "tensorboard>=2.14.0",
+]
+kaggle = [
+    "kaggle>=1.5.16",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/mle-star"
+Documentation = "https://github.com/yourusername/mle-star/docs"
+Repository = "https://github.com/yourusername/mle-star"
+
+[tool.setuptools]
+packages = ["mle_star"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311']
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"

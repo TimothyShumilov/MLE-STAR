@@ -1,0 +1,143 @@
+# Logging Configuration for MLE-STAR Framework
+#
+# This file configures the logging system for the framework.
+# Adjust log levels and formats based on your needs.
+
+version: 1
+disable_existing_loggers: false
+
+# Formatters define how log messages are formatted
+formatters:
+  # Detailed format with timestamps
+  detailed:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+
+  # Simple format for console
+  simple:
+    format: '%(levelname)s - %(name)s - %(message)s'
+
+  # JSON format for structured logging
+  json:
+    class: pythonjsonlogger.jsonlogger.JsonFormatter
+    format: '%(asctime)s %(name)s %(levelname)s %(message)s'
+
+# Handlers define where logs go (file, console, etc.)
+handlers:
+  # Console handler - prints to stdout
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: simple
+    stream: ext://sys.stdout
+
+  # File handler - main application log
+  file:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: ./logs/mle_star.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 5
+    encoding: utf8
+
+  # File handler - error log
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: detailed
+    filename: ./logs/errors.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 3
+    encoding: utf8
+
+  # File handler - workflow log
+  workflow_file:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: detailed
+    filename: ./logs/workflow.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 3
+    encoding: utf8
+
+# Loggers define logging configuration for specific modules
+loggers:
+  # Root MLE-STAR logger
+  mle_star:
+    level: INFO
+    handlers: [console, file, error_file]
+    propagate: false
+
+  # Workflow logger
+  mle_star.workflow:
+    level: DEBUG
+    handlers: [workflow_file]
+    propagate: true
+
+  # Agent loggers
+  mle_star.planner:
+    level: INFO
+    propagate: true
+
+  mle_star.executor:
+    level: INFO
+    propagate: true
+
+  mle_star.verifier:
+    level: INFO
+    propagate: true
+
+  # Model loggers
+  mle_star.openrouter:
+    level: INFO
+    propagate: true
+
+  mle_star.local_model:
+    level: INFO
+    propagate: true
+
+  mle_star.model_pool:
+    level: INFO
+    propagate: true
+
+  # Execution loggers
+  mle_star.sandbox:
+    level: INFO
+    propagate: true
+
+  mle_star.validator:
+    level: INFO
+    propagate: true
+
+  # State manager
+  mle_star.state_manager:
+    level: INFO
+    propagate: true
+
+  # Client
+  mle_star.client:
+    level: INFO
+    propagate: true
+
+# Root logger (fallback)
+root:
+  level: WARNING
+  handlers: [console]
+
+# Log Levels Guide:
+# - DEBUG: Detailed information, typically of interest only when diagnosing problems
+# - INFO: Confirmation that things are working as expected
+# - WARNING: An indication that something unexpected happened
+# - ERROR: A more serious problem, the software has not been able to perform a function
+# - CRITICAL: A serious error, the program itself may be unable to continue running
+
+# Usage:
+# To use this configuration, load it in your Python code:
+#
+# import logging.config
+# import yaml
+#
+# with open('configs/logging.yaml', 'r') as f:
+#     config = yaml.safe_load(f)
+#     logging.config.dictConfig(config)

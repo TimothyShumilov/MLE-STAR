@@ -1,0 +1,81 @@
+# Agent Configuration for MLE-STAR Framework
+#
+# This file defines the configuration for each agent in the system.
+# Adjust these settings based on your needs and available resources.
+
+# Planner Agent
+# Uses Llama 3.3 70B via OpenRouter API (free tier)
+planner:
+  role: planner
+  model_type: openrouter  # api-based model
+
+  model_config:
+    model_id: "meta-llama/llama-3.3-70b-instruct:free"
+    temperature: 0.8  # Higher for creative strategy generation
+    max_tokens: 2000
+    top_p: 0.95
+
+  # Retry and timeout settings
+  max_retries: 3
+  timeout: 60  # seconds
+
+  # Notes:
+  # - Free tier limited to 50 requests/day
+  # - Higher temperature encourages diverse strategies
+  # - Larger max_tokens allows detailed task decomposition
+
+# Executor Agent
+# Uses Qwen2.5-Coder-32B locally with 4-bit quantization
+executor:
+  role: executor
+  model_type: local  # locally loaded model
+
+  model_config:
+    model_name: "Qwen/Qwen2.5-Coder-32B-Instruct"
+    device_map: "auto"  # Automatic GPU allocation
+    load_in_4bit: true  # Enable 4-bit quantization
+    temperature: 0.2  # Lower for deterministic code generation
+    max_tokens: 4000  # Larger for complete code solutions
+    estimated_memory_gb: 10.0  # For model pool management
+
+    # Advanced quantization settings (optional)
+    quantization_type: "nf4"  # NF4 quantization
+    compute_dtype: "bfloat16"  # Computation precision
+    use_double_quant: true  # Extra memory savings
+
+  max_retries: 2
+  timeout: 300  # 5 minutes for code generation
+
+  # Notes:
+  # - Requires ~10GB VRAM in 4-bit mode
+  # - Lower temperature for more predictable code
+  # - Longer timeout for complex code generation
+
+# Verifier Agent
+# Uses Qwen2.5-Coder-14B locally with 4-bit quantization
+verifier:
+  role: verifier
+  model_type: local
+
+  model_config:
+    model_name: "Qwen/Qwen2.5-Coder-14B-Instruct"
+    device_map: "auto"
+    load_in_4bit: true
+    temperature: 0.1  # Very low for consistent evaluation
+    max_tokens: 1500  # Sufficient for verification results
+    estimated_memory_gb: 4.0
+
+    quantization_type: "nf4"
+    compute_dtype: "bfloat16"
+    use_double_quant: true
+
+  max_retries: 2
+  timeout: 120  # 2 minutes for verification
+
+  # Notes:
+  # - Requires ~4GB VRAM in 4-bit mode
+  # - Lowest temperature for objective evaluation
+  # - Faster timeout since verification is simpler
+
+# Total VRAM Usage: ~14GB (10GB + 4GB)
+# Leaves 18GB headroom on 2x16GB GPUs (32GB total)

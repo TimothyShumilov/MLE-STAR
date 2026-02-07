@@ -1,0 +1,176 @@
+# Model Configuration for MLE-STAR Framework
+#
+# This file defines model-specific settings and alternatives.
+# You can customize models based on your hardware and requirements.
+
+# Model Pool Configuration
+model_pool:
+  max_gpu_memory_gb: 28.0  # Maximum GPU memory to use (leaves headroom)
+  lazy_loading: true  # Load models only when needed
+  auto_unload: true  # Unload models when memory constrained
+
+# Planner Model Options
+planner_models:
+  # Default: Llama 3.3 70B (Recommended)
+  default:
+    provider: openrouter
+    model_id: "meta-llama/llama-3.3-70b-instruct:free"
+    pricing: free
+    rate_limit: 50  # requests per day
+    benchmarks:
+      mmlu: 86.0
+      mmlu_pro: 68.9
+      bbh: 85.0
+    notes: "Best reasoning and planning capabilities"
+
+  # Alternative: Llama 3.1 70B
+  alternative_1:
+    provider: openrouter
+    model_id: "meta-llama/llama-3.1-70b-instruct:free"
+    pricing: free
+    rate_limit: 50
+    notes: "Similar performance, slightly older"
+
+  # Paid alternative: GPT-4
+  paid_alternative:
+    provider: openrouter
+    model_id: "openai/gpt-4-turbo"
+    pricing: paid
+    notes: "Best performance but requires payment"
+
+# Executor Model Options
+executor_models:
+  # Default: Qwen2.5-Coder 32B (Recommended)
+  default:
+    provider: huggingface
+    model_name: "Qwen/Qwen2.5-Coder-32B-Instruct"
+    size_params: 32_000_000_000
+    quantization: "4-bit"
+    vram_4bit: 10  # GB
+    vram_8bit: 16  # GB
+    vram_fp16: 64  # GB
+    benchmarks:
+      humaneval: 70.0
+      mbpp: 75.0
+      livecodebench: "top-tier"
+    notes: "Best open-source code generation, comparable to GPT-4o"
+
+  # Alternative: CodeLlama 34B
+  alternative_1:
+    provider: huggingface
+    model_name: "codellama/CodeLlama-34b-Instruct-hf"
+    size_params: 34_000_000_000
+    quantization: "4-bit"
+    vram_4bit: 11  # GB
+    benchmarks:
+      humaneval: 48.0
+      mbpp: 55.0
+    notes: "Good alternative, slightly lower performance"
+
+  # Smaller option: Qwen2.5-Coder 14B
+  smaller_option:
+    provider: huggingface
+    model_name: "Qwen/Qwen2.5-Coder-14B-Instruct"
+    size_params: 14_000_000_000
+    quantization: "4-bit"
+    vram_4bit: 4  # GB
+    notes: "Use if VRAM constrained, still very capable"
+
+  # Smallest option: Qwen2.5-Coder 7B
+  smallest_option:
+    provider: huggingface
+    model_name: "Qwen/Qwen2.5-Coder-7B-Instruct"
+    size_params: 7_000_000_000
+    quantization: "4-bit"
+    vram_4bit: 2  # GB
+    notes: "Minimal VRAM requirement, acceptable performance"
+
+# Verifier Model Options
+verifier_models:
+  # Default: Qwen2.5-Coder 14B (Recommended)
+  default:
+    provider: huggingface
+    model_name: "Qwen/Qwen2.5-Coder-14B-Instruct"
+    size_params: 14_000_000_000
+    quantization: "4-bit"
+    vram_4bit: 4  # GB
+    notes: "Perfect balance of capability and efficiency"
+
+  # Alternative: Same as executor (code understanding)
+  alternative_1:
+    provider: huggingface
+    model_name: "Qwen/Qwen2.5-Coder-7B-Instruct"
+    size_params: 7_000_000_000
+    quantization: "4-bit"
+    vram_4bit: 2  # GB
+    notes: "Use if VRAM constrained"
+
+  # Alternative: Llama 3.1 8B
+  alternative_2:
+    provider: huggingface
+    model_name: "meta-llama/Meta-Llama-3.1-8B-Instruct"
+    size_params: 8_000_000_000
+    quantization: "4-bit"
+    vram_4bit: 2.5  # GB
+    notes: "Good general-purpose alternative"
+
+# Quantization Settings
+quantization:
+  # 4-bit quantization (NF4)
+  4bit:
+    type: "nf4"
+    compute_dtype: "bfloat16"
+    use_double_quant: true
+    memory_multiplier: 0.3  # ~0.3 GB per billion params
+
+  # 8-bit quantization
+  8bit:
+    type: "int8"
+    memory_multiplier: 1.0  # ~1.0 GB per billion params
+
+  # Full precision (FP16)
+  fp16:
+    memory_multiplier: 2.0  # ~2.0 GB per billion params
+
+# Hardware Configurations
+# Preset configurations for different hardware setups
+hardware_presets:
+  # 2x 16GB GPUs (32GB total) - Recommended
+  dual_16gb:
+    max_gpu_memory_gb: 28.0
+    executor_model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+    verifier_model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+    quantization: "4-bit"
+    total_vram: 14  # GB
+
+  # Single 24GB GPU
+  single_24gb:
+    max_gpu_memory_gb: 20.0
+    executor_model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+    verifier_model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+    quantization: "4-bit"
+    total_vram: 6  # GB
+
+  # Single 16GB GPU (tight)
+  single_16gb:
+    max_gpu_memory_gb: 14.0
+    executor_model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+    verifier_model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+    quantization: "4-bit"
+    total_vram: 6  # GB
+    notes: "May need to unload executor when loading verifier"
+
+  # Single 12GB GPU (minimal)
+  single_12gb:
+    max_gpu_memory_gb: 10.0
+    executor_model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+    verifier_model: "Qwen/Qwen2.5-Coder-7B-Instruct"
+    quantization: "4-bit"
+    total_vram: 4  # GB
+    notes: "Minimal viable configuration"
+
+# Notes:
+# - Choose configuration based on your available VRAM
+# - 4-bit quantization is recommended for best memory efficiency
+# - Leave 10-20% VRAM headroom for safety
+# - Smaller models are still very capable for many tasks
