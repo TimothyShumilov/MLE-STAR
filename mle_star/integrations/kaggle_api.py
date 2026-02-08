@@ -12,6 +12,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from dotenv import load_dotenv
+
+# Load .env file to ensure KAGGLE_API_TOKEN is available
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 
