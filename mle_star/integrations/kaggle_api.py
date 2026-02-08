@@ -12,11 +12,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from dotenv import load_dotenv
-
-# Load .env file to ensure KAGGLE_API_TOKEN is available
-load_dotenv()
-
 logger = logging.getLogger(__name__)
 
 
@@ -41,13 +36,20 @@ class KaggleAPIClient:
         ...     print(metadata['title'])
     """
 
-    def __init__(self, cache_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        cache_dir: Optional[Path] = None,
+        kaggle_username: Optional[str] = None,
+        kaggle_key: Optional[str] = None
+    ):
         """
         Initialize Kaggle API client.
 
         Args:
             cache_dir: Directory for caching API responses. Defaults to
                       ~/.cache/mle_star/kaggle/
+            kaggle_username: Kaggle username (optional, for explicit auth)
+            kaggle_key: Kaggle API key (optional, for explicit auth)
         """
         self.cache_dir = cache_dir or Path.home() / '.cache' / 'mle_star' / 'kaggle'
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -58,6 +60,10 @@ class KaggleAPIClient:
 
         # Cache TTL: 24 hours (competitions don't change often)
         self.cache_ttl = timedelta(hours=24)
+
+        # Store credentials
+        self.kaggle_username = kaggle_username
+        self.kaggle_key = kaggle_key
 
         # Try to import and initialize Kaggle API
         self._api = None
@@ -70,19 +76,13 @@ class KaggleAPIClient:
             # Import kaggle module (fails if not installed)
             from kaggle.api.kaggle_api_extended import KaggleApi
 
-            # Check for KAGGLE_API_TOKEN env var (used in Kaggle notebooks)
-            # Format: {"username":"xxx","key":"xxx"}
-            kaggle_token = os.environ.get('KAGGLE_API_TOKEN')
-            if kaggle_token:
-                try:
-                    token_data = json.loads(kaggle_token)
-                    os.environ['KAGGLE_USERNAME'] = token_data.get('username', '')
-                    os.environ['KAGGLE_KEY'] = token_data.get('key', '')
-                    logger.debug("Using KAGGLE_API_TOKEN from environment")
-                except json.JSONDecodeError:
-                    logger.warning("KAGGLE_API_TOKEN is not valid JSON")
+            # Use passed credentials if available (highest priority)
+            if self.kaggle_username and self.kaggle_key:
+                os.environ['KAGGLE_USERNAME'] = self.kaggle_username
+                os.environ['KAGGLE_KEY'] = self.kaggle_key
+                logger.debug("Using Kaggle credentials from client initialization")
 
-            # Initialize API
+            # Initialize API (will use env vars or kaggle.json as fallback)
             api = KaggleApi()
             api.authenticate()  # Raises error if credentials not found
 

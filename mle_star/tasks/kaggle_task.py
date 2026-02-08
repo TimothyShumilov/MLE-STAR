@@ -75,7 +75,9 @@ class KaggleTask(MLTask):
         evaluation_metric: Optional[str] = None,
         description: Optional[str] = None,
         auto_enrich: bool = True,
-        submission_format: Optional[str] = None
+        submission_format: Optional[str] = None,
+        kaggle_username: Optional[str] = None,
+        kaggle_key: Optional[str] = None
     ):
         """
         Initialize Kaggle task with auto-download and auto-detection.
@@ -91,6 +93,8 @@ class KaggleTask(MLTask):
                         and profile dataset. If False, use minimal description.
             submission_format: Format for submission file. If None, auto-detected
                              from sample_submission file extension.
+            kaggle_username: Kaggle username (optional, for explicit auth)
+            kaggle_key: Kaggle API key (optional, for explicit auth)
         """
         # Store competition name early
         self.competition_name = competition_name
@@ -99,7 +103,10 @@ class KaggleTask(MLTask):
         if data_dir is None:
             logger.info(f"No data_dir provided, attempting auto-download for {competition_name}")
 
-            kaggle_client = KaggleAPIClient()
+            kaggle_client = KaggleAPIClient(
+                kaggle_username=kaggle_username,
+                kaggle_key=kaggle_key
+            )
 
             # Try to get cached data first
             cached_dir = kaggle_client.get_cached_data_dir(competition_name)
@@ -138,7 +145,10 @@ class KaggleTask(MLTask):
         kaggle_client = None
         if auto_enrich:
             try:
-                kaggle_client = KaggleAPIClient()
+                kaggle_client = KaggleAPIClient(
+                    kaggle_username=kaggle_username,
+                    kaggle_key=kaggle_key
+                )
                 if kaggle_client.is_authenticated():
                     kaggle_info = kaggle_client.fetch_competition_metadata(competition_name)
                     if kaggle_info:

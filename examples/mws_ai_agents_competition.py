@@ -1,15 +1,15 @@
 """
-MWS AI Agents 2026 Kaggle Competition Example.
+Kaggle Competition Example - Fully Automated.
 
-This example demonstrates using MLE-STAR for the mws-ai-agents-2026 competition,
-a regression task to predict rental property occupancy days.
+This example demonstrates using MLE-STAR for Kaggle competitions
+with all configuration passed directly in code (no .env file required).
 
 Competition: https://www.kaggle.com/competitions/mws-ai-agents-2026/overview
-Task Type: Regression
-Metric: MSE (Mean Squared Error)
 
 Usage:
-    python examples/mws_ai_agents_competition.py
+    1. Update the CONFIG section below with your credentials
+    2. Update COMPETITION_NAME if running a different competition
+    3. Run: python examples/mws_ai_agents_competition.py
 """
 
 import asyncio
@@ -20,187 +20,295 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from mle_star.api.client import MLEStarClient
+from mle_star.utils.config import Config
 
+
+# ============================================================================
+# CONFIGURATION - Update these values with your credentials
+# ============================================================================
+
+CONFIG = {
+    # Required: OpenRouter API key for LLM access
+    'openrouter_api_key': 'your_openrouter_api_key_here',
+
+    # Required: Kaggle credentials for competition data access
+    'kaggle_username': 'your_kaggle_username',
+    'kaggle_key': 'your_kaggle_api_key',
+
+    # Model selection
+    'planner_model': 'meta-llama/llama-3.3-70b-instruct:free',
+    'executor_model': 'Qwen/Qwen2.5-Coder-32B-Instruct',
+    'verifier_model': 'Qwen/Qwen2.5-Coder-14B-Instruct',
+
+    # Workflow settings
+    'max_iterations': 5,
+    'parallel_strategies': 3,
+
+    # Resource limits
+    'max_gpu_memory_gb': 28.0,
+    'max_execution_time': 300,
+    'max_memory_mb': 4096,
+
+    # Monitoring
+    'enable_monitoring': True,
+    'logs_dir': './logs',
+    'metrics_dir': './metrics',
+
+    # Security
+    'enable_sandbox': True,
+    'allow_network': False,
+    'allow_file_io': False,
+
+    # Development
+    'debug': False,
+    'log_level': 'INFO',
+}
+
+# Competition name
+COMPETITION_NAME = "mws-ai-agents-2026"
+
+
+# ============================================================================
+# Main execution
+# ============================================================================
 
 async def main():
-    """Run MWS AI Agents 2026 competition with full automation."""
+    """Run Kaggle competition with full automation."""
     print("=" * 70)
-    print("MLE-STAR: MWS AI Agents 2026 Competition")
-    print("Rental Property Occupancy Prediction (Regression)")
-    print("Full automation - just competition name!")
+    print("MLE-STAR: Kaggle Competition Automation")
+    print("Full automation with direct configuration!")
     print("=" * 70)
     print()
 
-    # Configuration - just competition name!
-    competition_name = "mws-ai-agents-2026"
+    # Validate configuration
+    if CONFIG['openrouter_api_key'] == 'your_openrouter_api_key_here':
+        print("❌ Error: Please update CONFIG['openrouter_api_key'] in the script")
+        return 1
 
-    print(f"Competition: {competition_name}")
+    if CONFIG['kaggle_username'] == 'your_kaggle_username':
+        print("❌ Error: Please update CONFIG['kaggle_username'] and CONFIG['kaggle_key']")
+        return 1
+
+    print(f"Competition: {COMPETITION_NAME}")
     print()
 
-    # Initialize client
+    # Create configuration object directly
+    print("Creating configuration...")
+    config = Config(
+        # API Keys
+        openrouter_api_key=CONFIG['openrouter_api_key'],
+        kaggle_username=CONFIG['kaggle_username'],
+        kaggle_key=CONFIG['kaggle_key'],
+
+        # Model configurations
+        planner_model={
+            'model_name': CONFIG['planner_model'],
+            'temperature': 0.8,
+            'max_tokens': 2000,
+        },
+        executor_model={
+            'model_name': CONFIG['executor_model'],
+            'temperature': 0.2,
+            'max_tokens': 4000,
+            'load_in_4bit': True,
+            'estimated_memory_gb': 10.0,
+        },
+        verifier_model={
+            'model_name': CONFIG['verifier_model'],
+            'temperature': 0.1,
+            'max_tokens': 1500,
+            'load_in_4bit': True,
+            'estimated_memory_gb': 4.0,
+        },
+
+        # Workflow settings
+        max_iterations=CONFIG['max_iterations'],
+        parallel_strategies=CONFIG['parallel_strategies'],
+
+        # Resource limits
+        max_gpu_memory_gb=CONFIG['max_gpu_memory_gb'],
+        max_execution_time=CONFIG['max_execution_time'],
+        max_memory_mb=CONFIG['max_memory_mb'],
+
+        # Monitoring
+        enable_monitoring=CONFIG['enable_monitoring'],
+        metrics_dir=Path(CONFIG['metrics_dir']),
+        logs_dir=Path(CONFIG['logs_dir']),
+
+        # Security
+        enable_sandbox=CONFIG['enable_sandbox'],
+        allow_network=CONFIG['allow_network'],
+        allow_file_io=CONFIG['allow_file_io'],
+
+        # Development
+        debug=CONFIG['debug'],
+        log_level=CONFIG['log_level'],
+    )
+
+    print("✓ Configuration created")
+    print()
+
+    # Initialize client with explicit configuration
     print("Initializing MLE-STAR client...")
     print()
 
     try:
-        async with MLEStarClient.from_env() as client:
-            print("✓ Client initialized")
+        # Create client with explicit config
+        client = MLEStarClient(config)
+
+        # Initialize (loads models)
+        await client.initialize()
+
+        print("✓ Client initialized")
+        print()
+
+        # Execute with full automation!
+        print("=" * 70)
+        print("Executing STAR Workflow for Kaggle Competition")
+        print("=" * 70)
+        print()
+        print("Full automation will:")
+        print("  1. Download competition data to cache (~/.cache/mle_star/competitions/)")
+        print("  2. Fetch competition metadata from Kaggle API")
+        print("  3. Auto-detect evaluation metric")
+        print("  4. Auto-detect submission format")
+        print("  5. Profile the dataset (columns, types, missing values, sample data)")
+        print("  6. Generate rich task description automatically")
+        print("  7. Pass structured context to agents")
+        print()
+        print("This may take 15-30 minutes depending on:")
+        print("  - Data download time (first run only)")
+        print("  - Number of iterations")
+        print("  - Model complexity")
+        print("  - Dataset size")
+        print()
+
+        # Minimal API - just competition name!
+        # Credentials are passed from config automatically
+        result = await client.execute_kaggle_competition(COMPETITION_NAME)
+
+        # Display results
+        print()
+        print("=" * 70)
+        print("Competition Results")
+        print("=" * 70)
+        print()
+
+        print(f"Status: {result['status'].upper()}")
+        print(f"Iterations: {result.get('iterations', 'N/A')}")
+        print()
+
+        if result['status'] in ['success', 'partial_success']:
+            best_result = result.get('result', {})
+            verification = best_result.get('verification', {})
+
+            score = verification.get('score', None)
+            if score is not None:
+                print(f"Validation Score: {score:.4f}")
             print()
 
-            # Execute with full automation!
-            print("=" * 70)
-            print("Executing STAR Workflow for Kaggle Competition")
-            print("=" * 70)
-            print()
-            print("Full automation will:")
-            print("  1. Download competition data to cache (~/.cache/mle_star/competitions/)")
-            print("  2. Fetch competition metadata from Kaggle API")
-            print("  3. Auto-detect evaluation metric (MSE for this competition)")
-            print("  4. Auto-detect submission format (CSV)")
-            print("  5. Profile the dataset (columns, types, missing values, sample data)")
-            print("  6. Generate rich task description automatically")
-            print("  7. Pass structured context to agents")
-            print()
-            print("This may take 15-30 minutes depending on:")
-            print("  - Data download time (first run only)")
-            print("  - Number of iterations (max 5)")
-            print("  - Model complexity")
-            print("  - Dataset size")
-            print()
+            # Check if submission file was created
+            data_cache = Path.home() / '.cache' / 'mle_star' / 'competitions' / COMPETITION_NAME
+            submission_path = data_cache / f"submission_{COMPETITION_NAME}.csv"
+            alt_submission_path = data_cache / "submission.csv"
 
-            # Minimal API - just competition name!
-            result = await client.execute_kaggle_competition(competition_name)
-            # That's it! Everything else is automatic:
-            # - data_dir auto-downloaded to cache
-            # - evaluation_metric auto-detected (mse)
-            # - submission_format auto-detected (csv)
-            # - description auto-generated with rich context
+            found_submission = None
+            if submission_path.exists():
+                found_submission = submission_path
+            elif alt_submission_path.exists():
+                found_submission = alt_submission_path
 
-            # Optional: Provide manual overrides
-            # result = await client.execute_kaggle_competition(
-            #     competition_name,
-            #     data_dir=Path("./my_data"),
-            #     evaluation_metric="rmse"
-            # )
-
-            # Display results
-            print()
-            print("=" * 70)
-            print("Competition Results")
-            print("=" * 70)
-            print()
-
-            print(f"Status: {result['status'].upper()}")
-            print(f"Iterations: {result.get('iterations', 'N/A')}")
-            print()
-
-            if result['status'] in ['success', 'partial_success']:
-                best_result = result.get('result', {})
-                verification = best_result.get('verification', {})
-
-                mse_score = verification.get('score', None)
-                if mse_score is not None:
-                    print(f"MSE Score: {mse_score:.4f}")
-                    print(f"RMSE Score: {mse_score ** 0.5:.4f}")
+            if found_submission:
+                print(f"✓ Submission file created: {found_submission}")
                 print()
 
-                # Check if submission file was created
-                submission_path = data_dir / f"submission_{competition_name}.csv"
-                alt_submission_path = data_dir / "submission.csv"
-
-                found_submission = None
-                if submission_path.exists():
-                    found_submission = submission_path
-                elif alt_submission_path.exists():
-                    found_submission = alt_submission_path
-
-                if found_submission:
-                    print(f"✓ Submission file created: {found_submission}")
-                    print()
-
-                    # Show first few lines
-                    try:
-                        with open(found_submission, 'r') as f:
-                            lines = f.readlines()[:6]
-                        print("Submission Preview:")
-                        print("-" * 70)
-                        for line in lines:
-                            print(line.strip())
-                        print("-" * 70)
-                        print()
-                    except Exception as e:
-                        print(f"Could not preview submission: {e}")
-                        print()
-
-                else:
-                    print("⚠ Submission file not found")
-                    print("  Expected locations:")
-                    print(f"    - {submission_path}")
-                    print(f"    - {alt_submission_path}")
-                    print()
-
-                # Show generated code preview
-                code = best_result.get('code', '')
-                if code:
-                    print("Generated Code Preview (first 1500 chars):")
+                # Show first few lines
+                try:
+                    with open(found_submission, 'r') as f:
+                        lines = f.readlines()[:6]
+                    print("Submission Preview:")
                     print("-" * 70)
-                    print(code[:1500])
-                    if len(code) > 1500:
-                        print(f"\n... ({len(code) - 1500} more characters)")
+                    for line in lines:
+                        print(line.strip())
                     print("-" * 70)
                     print()
-
-                # Show verification feedback
-                feedback = verification.get('feedback', {})
-                if feedback:
-                    print("Verification Feedback:")
+                except Exception as e:
+                    print(f"Could not preview submission: {e}")
                     print()
-
-                    strengths = feedback.get('strengths', [])
-                    if strengths:
-                        print("Strengths:")
-                        for strength in strengths:
-                            print(f"  ✓ {strength}")
-                        print()
-
-                    weaknesses = feedback.get('weaknesses', [])
-                    if weaknesses:
-                        print("Areas for Improvement:")
-                        for weakness in weaknesses:
-                            print(f"  • {weakness}")
-                        print()
-
-                    suggestions = feedback.get('suggestions', [])
-                    if suggestions:
-                        print("Suggestions for Next Iteration:")
-                        for suggestion in suggestions:
-                            print(f"  → {suggestion}")
-                        print()
-
-                # Next steps
-                print("=" * 70)
-                print("Next Steps")
-                print("=" * 70)
-                print()
-                print("1. Review the generated code and submission file")
-                print("2. Validate submission format matches sample_submission.csv")
-                print("3. Check predictions are reasonable (non-negative, realistic range)")
-                print("4. Submit to Kaggle:")
-                print(f"   kaggle competitions submit -c {competition_name} \\")
-                print(f"     -f {found_submission if found_submission else 'submission.csv'} \\")
-                print("     -m 'MLE-STAR generated submission'")
-                print("5. Check leaderboard score and compare with local MSE")
-                print("6. Iterate: refine features, try ensemble, tune hyperparameters")
-                print()
 
             else:
-                print("✗ Competition task failed")
-                print(f"Reason: {result.get('reason', 'unknown')}")
+                print("⚠ Submission file not found")
+                print("  Expected locations:")
+                print(f"    - {submission_path}")
+                print(f"    - {alt_submission_path}")
                 print()
-                print("Troubleshooting:")
-                print("- Verify data files exist in data directory")
-                print("- Check data format matches expected structure")
-                print("- Review error logs for specific issues")
+
+            # Show generated code preview
+            code = best_result.get('code', '')
+            if code:
+                print("Generated Code Preview (first 1500 chars):")
+                print("-" * 70)
+                print(code[:1500])
+                if len(code) > 1500:
+                    print(f"\n... ({len(code) - 1500} more characters)")
+                print("-" * 70)
                 print()
+
+            # Show verification feedback
+            feedback = verification.get('feedback', {})
+            if feedback:
+                print("Verification Feedback:")
+                print()
+
+                strengths = feedback.get('strengths', [])
+                if strengths:
+                    print("Strengths:")
+                    for strength in strengths:
+                        print(f"  ✓ {strength}")
+                    print()
+
+                weaknesses = feedback.get('weaknesses', [])
+                if weaknesses:
+                    print("Areas for Improvement:")
+                    for weakness in weaknesses:
+                        print(f"  • {weakness}")
+                    print()
+
+                suggestions = feedback.get('suggestions', [])
+                if suggestions:
+                    print("Suggestions for Next Iteration:")
+                    for suggestion in suggestions:
+                        print(f"  → {suggestion}")
+                    print()
+
+            # Next steps
+            print("=" * 70)
+            print("Next Steps")
+            print("=" * 70)
+            print()
+            print("1. Review the generated code and submission file")
+            print("2. Validate submission format matches sample_submission.csv")
+            print("3. Check predictions are reasonable (non-negative, realistic range)")
+            print("4. Submit to Kaggle:")
+            print(f"   kaggle competitions submit -c {COMPETITION_NAME} \\")
+            print(f"     -f {found_submission if found_submission else 'submission.csv'} \\")
+            print("     -m 'MLE-STAR generated submission'")
+            print("5. Check leaderboard score and compare with local validation score")
+            print("6. Iterate: refine features, try ensemble, tune hyperparameters")
+            print()
+
+        else:
+            print("✗ Competition task failed")
+            print(f"Reason: {result.get('reason', 'unknown')}")
+            print()
+            print("Troubleshooting:")
+            print("- Verify Kaggle credentials are correct")
+            print("- Check data files exist in data directory")
+            print("- Review error logs for specific issues")
+            print()
+
+        # Cleanup
+        await client.cleanup()
 
     except Exception as e:
         print(f"\n✗ Error: {e}")
@@ -217,39 +325,6 @@ async def main():
     print()
 
     return 0
-
-
-# Alternative usage patterns (for reference):
-
-# Option 2: Disable auto-enrichment (use minimal description)
-async def example_minimal():
-    """Example with auto-enrichment disabled."""
-    async with MLEStarClient.from_env() as client:
-        result = await client.execute_kaggle_competition(
-            "mws-ai-agents-2026",
-            Path("./data/mws_ai_agents"),
-            "mse",
-            auto_enrich=False  # Use minimal description
-        )
-        return result
-
-
-# Option 3: Manual description (backward compatible)
-async def example_manual_description():
-    """Example with custom manual description."""
-    custom_description = """
-    Custom task description goes here.
-    You can provide specific instructions if needed.
-    """
-
-    async with MLEStarClient.from_env() as client:
-        result = await client.execute_kaggle_competition(
-            "mws-ai-agents-2026",
-            Path("./data/mws_ai_agents"),
-            "mse",
-            description=custom_description  # Overrides auto-generation
-        )
-        return result
 
 
 if __name__ == "__main__":

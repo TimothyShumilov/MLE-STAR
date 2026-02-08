@@ -16,7 +16,7 @@ from ..models.local_model import LocalModel
 from ..models.model_pool import ModelPool
 from ..execution.sandbox import CodeSandbox
 from ..execution.validator import CodeValidator
-from ..utils.config import Config, load_config
+from ..utils.config import Config
 from ..tasks.task import Task
 from ..tasks.kaggle_task import KaggleTask
 
@@ -29,8 +29,15 @@ class MLEStarClient:
     framework. It handles all initialization, configuration, and orchestration.
 
     Example:
-        >>> # From environment variables
-        >>> client = MLEStarClient.from_env()
+        >>> # Create config directly
+        >>> config = Config(
+        ...     openrouter_api_key='sk-or-...',
+        ...     kaggle_username='username',
+        ...     kaggle_key='key',
+        ...     planner_model={'model_name': '...', ...},
+        ...     # ... other parameters
+        ... )
+        >>> client = MLEStarClient(config)
         >>> await client.initialize()
         >>>
         >>> # Execute a task
@@ -40,16 +47,9 @@ class MLEStarClient:
         >>> # Check result
         >>> if result['status'] == 'success':
         ...     print("Task completed!")
-
-    Example:
-        >>> # From config file
-        >>> client = MLEStarClient.from_config(Path("config.yaml"))
-        >>> await client.initialize()
-        >>> result = await client.execute_kaggle_competition(
-        ...     "titanic",
-        ...     Path("./data"),
-        ...     "accuracy"
-        ... )
+        >>>
+        >>> # Execute Kaggle competition
+        >>> result = await client.execute_kaggle_competition("titanic")
     """
 
     def __init__(self, config: Config):
@@ -84,7 +84,8 @@ class MLEStarClient:
         which can take 30-60 seconds on first run.
 
         Example:
-            >>> client = MLEStarClient.from_env()
+            >>> config = Config(...)
+            >>> client = MLEStarClient(config)
             >>> await client.initialize()  # Loads models
             >>> # Now ready to execute tasks
         """
@@ -291,7 +292,9 @@ class MLEStarClient:
             data_dir=data_dir,
             evaluation_metric=evaluation_metric,
             description=description,
-            auto_enrich=auto_enrich
+            auto_enrich=auto_enrich,
+            kaggle_username=self.config.kaggle_username,
+            kaggle_key=self.config.kaggle_key
         )
 
         # Validate data files
@@ -356,42 +359,6 @@ class MLEStarClient:
         self._initialized = False
         self.logger.info("✓ Cleanup complete")
 
-    @classmethod
-    def from_config(cls, config_path: Path) -> 'MLEStarClient':
-        """
-        Create client from YAML configuration file.
-
-        Args:
-            config_path: Path to configuration file
-
-        Returns:
-            MLEStarClient instance
-
-        Example:
-            >>> client = MLEStarClient.from_config(Path("config.yaml"))
-            >>> await client.initialize()
-        """
-        config = load_config(config_path=config_path)
-        return cls(config)
-
-    @classmethod
-    def from_env(cls, env_file: Optional[Path] = None) -> 'MLEStarClient':
-        """
-        Create client from environment variables.
-
-        Args:
-            env_file: Optional path to .env file
-
-        Returns:
-            MLEStarClient instance
-
-        Example:
-            >>> client = MLEStarClient.from_env()
-            >>> await client.initialize()
-        """
-        config = load_config(env_file=env_file)
-        return cls(config)
-
     def __str__(self) -> str:
         """String representation."""
         status = "initialized" if self._initialized else "not initialized"
@@ -414,41 +381,3 @@ class MLEStarClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit."""
         await self.cleanup()
-
-
-# Convenience function for quick usage
-async def execute_task_simple(
-    description: str,
-    task_type: str = "custom",
-    success_criteria: Optional[list] = None
-) -> Dict[str, Any]:
-    """
-    Simple one-line task execution.
-
-    Args:
-        description: Task description
-        task_type: Task type (classification, regression, etc.)
-        success_criteria: Optional success criteria
-
-    Returns:
-        Result dictionary
-
-    Example:
-        >>> result = await execute_task_simple(
-        ...     "Train a classifier on Iris dataset with >0.95 accuracy"
-        ... )
-    """
-    from ..tasks.task import create_task_from_description, TaskType
-
-    # Create task
-    task = create_task_from_description(
-        description=description,
-        task_type=TaskType(task_type) if task_type != "custom" else None,
-        success_criteria=success_criteria or []
-    )
-
-    # Execute
-    async with MLEStarClient.from_env() as client:
-        result = await client.execute_task(task)
-
-    return result

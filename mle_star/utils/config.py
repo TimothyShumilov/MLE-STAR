@@ -4,8 +4,6 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 from dataclasses import dataclass, field
 import yaml
-import os
-from dotenv import load_dotenv
 import logging
 
 
@@ -14,6 +12,8 @@ class Config:
     """
     Main configuration for the MLE-STAR framework.
 
+    Configuration must be created directly by passing all parameters.
+
     This class consolidates all configuration settings including:
     - API keys and credentials
     - Model configurations for each agent
@@ -21,10 +21,40 @@ class Config:
     - Resource limits
     - Monitoring settings
     - Security settings
+
+    Example:
+        >>> config = Config(
+        ...     openrouter_api_key='sk-or-...',
+        ...     kaggle_username='your_username',
+        ...     kaggle_key='your_api_key',
+        ...     planner_model={
+        ...         'model_name': 'meta-llama/llama-3.3-70b-instruct:free',
+        ...         'temperature': 0.8,
+        ...         'max_tokens': 2000,
+        ...     },
+        ...     executor_model={
+        ...         'model_name': 'Qwen/Qwen2.5-Coder-32B-Instruct',
+        ...         'temperature': 0.2,
+        ...         'max_tokens': 4000,
+        ...         'load_in_4bit': True,
+        ...         'estimated_memory_gb': 10.0,
+        ...     },
+        ...     verifier_model={
+        ...         'model_name': 'Qwen/Qwen2.5-Coder-14B-Instruct',
+        ...         'temperature': 0.1,
+        ...         'max_tokens': 1500,
+        ...         'load_in_4bit': True,
+        ...         'estimated_memory_gb': 4.0,
+        ...     },
+        ...     max_iterations=5,
+        ...     parallel_strategies=3,
+        ... )
     """
 
     # API Keys
     openrouter_api_key: str
+    kaggle_username: Optional[str] = None
+    kaggle_key: Optional[str] = None
 
     # Model configurations
     planner_model: Dict[str, Any] = field(default_factory=dict)
@@ -65,118 +95,6 @@ class Config:
         self.metrics_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
 
-    @classmethod
-    def from_yaml(cls, config_path: Path) -> 'Config':
-        """
-        Load configuration from YAML file.
-
-        Args:
-            config_path: Path to YAML configuration file
-
-        Returns:
-            Config instance
-
-        Raises:
-            FileNotFoundError: If config file doesn't exist
-            ValueError: If config file is invalid
-
-        Example:
-            >>> config = Config.from_yaml(Path("config.yaml"))
-        """
-        if not config_path.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-
-        try:
-            with open(config_path, 'r') as f:
-                data = yaml.safe_load(f)
-
-            if data is None:
-                raise ValueError("Empty configuration file")
-
-            return cls(**data)
-
-        except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML in configuration file: {e}")
-        except TypeError as e:
-            raise ValueError(f"Invalid configuration structure: {e}")
-
-    @classmethod
-    def from_env(cls, env_file: Optional[Path] = None) -> 'Config':
-        """
-        Load configuration from environment variables.
-
-        Loads from .env file if specified, then reads from environment.
-
-        Args:
-            env_file: Optional path to .env file
-
-        Returns:
-            Config instance
-
-        Raises:
-            ValueError: If required environment variables are missing
-
-        Example:
-            >>> config = Config.from_env()  # Load from current environment
-            >>> config = Config.from_env(Path(".env"))  # Load from .env file
-        """
-        # Load .env file if provided
-        if env_file and env_file.exists():
-            load_dotenv(env_file)
-        else:
-            load_dotenv()  # Try to load from default .env location
-
-        # Required API key
-        api_key = os.getenv('OPENROUTER_API_KEY')
-        if not api_key:
-            raise ValueError(
-                "OPENROUTER_API_KEY environment variable is required. "
-                "Please set it in your .env file or environment."
-            )
-
-        # Model configurations
-        planner_model = {
-            'model_name': os.getenv('PLANNER_MODEL', 'meta-llama/llama-3.3-70b-instruct:free'),
-            'temperature': float(os.getenv('PLANNER_TEMPERATURE', '0.8')),
-            'max_tokens': int(os.getenv('PLANNER_MAX_TOKENS', '2000')),
-        }
-
-        executor_model = {
-            'model_name': os.getenv('EXECUTOR_MODEL', 'Qwen/Qwen2.5-Coder-32B-Instruct'),
-            'temperature': float(os.getenv('EXECUTOR_TEMPERATURE', '0.2')),
-            'max_tokens': int(os.getenv('EXECUTOR_MAX_TOKENS', '4000')),
-            'load_in_4bit': os.getenv('EXECUTOR_4BIT', 'true').lower() == 'true',
-            'estimated_memory_gb': float(os.getenv('EXECUTOR_MEMORY_GB', '10.0')),
-        }
-
-        verifier_model = {
-            'model_name': os.getenv('VERIFIER_MODEL', 'Qwen/Qwen2.5-Coder-14B-Instruct'),
-            'temperature': float(os.getenv('VERIFIER_TEMPERATURE', '0.1')),
-            'max_tokens': int(os.getenv('VERIFIER_MAX_TOKENS', '1500')),
-            'load_in_4bit': os.getenv('VERIFIER_4BIT', 'true').lower() == 'true',
-            'estimated_memory_gb': float(os.getenv('VERIFIER_MEMORY_GB', '4.0')),
-        }
-
-        return cls(
-            openrouter_api_key=api_key,
-            planner_model=planner_model,
-            executor_model=executor_model,
-            verifier_model=verifier_model,
-            max_iterations=int(os.getenv('MAX_ITERATIONS', '5')),
-            parallel_strategies=int(os.getenv('PARALLEL_STRATEGIES', '3')),
-            max_gpu_memory_gb=float(os.getenv('MAX_GPU_MEMORY_GB', '28.0')),
-            max_execution_time=int(os.getenv('MAX_EXECUTION_TIME', '300')),
-            max_memory_mb=int(os.getenv('MAX_MEMORY_MB', '4096')),
-            enable_monitoring=os.getenv('ENABLE_MONITORING', 'true').lower() == 'true',
-            metrics_dir=Path(os.getenv('METRICS_DIR', './metrics')),
-            logs_dir=Path(os.getenv('LOGS_DIR', './logs')),
-            enable_sandbox=os.getenv('ENABLE_SANDBOX', 'true').lower() == 'true',
-            allow_network=os.getenv('ALLOW_NETWORK', 'false').lower() == 'true',
-            allow_file_io=os.getenv('ALLOW_FILE_IO', 'false').lower() == 'true',
-            debug=os.getenv('DEBUG', 'false').lower() == 'true',
-            log_level=os.getenv('LOG_LEVEL', 'INFO').upper(),
-        )
-
     def to_dict(self) -> Dict[str, Any]:
         """
         Convert configuration to dictionary.
@@ -186,6 +104,8 @@ class Config:
         """
         return {
             'openrouter_api_key': '***' if self.openrouter_api_key else None,  # Redacted
+            'kaggle_username': '***' if self.kaggle_username else None,  # Redacted
+            'kaggle_key': '***' if self.kaggle_key else None,  # Redacted
             'planner_model': self.planner_model,
             'executor_model': self.executor_model,
             'verifier_model': self.verifier_model,
@@ -214,7 +134,7 @@ class Config:
             path: Path to save configuration
 
         Example:
-            >>> config = Config.from_env()
+            >>> config = Config(...)
             >>> config.save(Path("config.yaml"))
         """
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -230,7 +150,7 @@ class Config:
             Tuple of (is_valid, error_message)
 
         Example:
-            >>> config = Config.from_env()
+            >>> config = Config(...)
             >>> is_valid, error = config.validate()
             >>> if not is_valid:
             ...     print(f"Invalid config: {error}")
@@ -321,45 +241,3 @@ class Config:
             f"enable_monitoring={self.enable_monitoring}"
             f")"
         )
-
-
-def load_config(
-    config_path: Optional[Path] = None,
-    env_file: Optional[Path] = None
-) -> Config:
-    """
-    Convenience function to load configuration.
-
-    Tries to load from YAML first, falls back to environment variables.
-
-    Args:
-        config_path: Optional path to YAML config file
-        env_file: Optional path to .env file
-
-    Returns:
-        Config instance
-
-    Raises:
-        ValueError: If configuration cannot be loaded or is invalid
-
-    Example:
-        >>> # Load from environment
-        >>> config = load_config()
-        >>>
-        >>> # Load from YAML
-        >>> config = load_config(config_path=Path("config.yaml"))
-    """
-    if config_path and config_path.exists():
-        config = Config.from_yaml(config_path)
-    else:
-        config = Config.from_env(env_file)
-
-    # Validate configuration
-    is_valid, error = config.validate()
-    if not is_valid:
-        raise ValueError(f"Invalid configuration: {error}")
-
-    # Setup logging
-    config.setup_logging()
-
-    return config
