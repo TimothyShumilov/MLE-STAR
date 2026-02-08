@@ -435,3 +435,234 @@ class TestEnrichmentIntegration:
         profile = task.dataset_info['data_profile']
         assert 'Age' in profile['columns']
         assert profile['columns']['Age']['missing_pct'] == 20.0
+
+
+class TestDataDownload:
+    """Test automatic data download functionality."""
+
+    @patch('mle_star.integrations.kaggle_api.KaggleApi')
+    def test_download_competition_data_success(self, mock_api_class, tmp_path):
+        """Test successful data download."""
+        # Setup mock API
+        mock_instance = Mock()
+        mock_api_class.return_value = mock_instance
+
+        # Create client with temp cache
+        client = KaggleAPIClient()
+        client.data_cache_dir = tmp_path / "competitions"
+
+        # Mock download method
+        def mock_download(comp_name, path, quiet):
+            # Create fake zip file
+            zip_path = Path(path) / f"{comp_name}.zip"
+            zip_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Create fake train/test files in a zip
+            import zipfile
+            with zipfile.ZipFile(zip_path, 'w') as zf:
+                zf.writestr('train.csv', 'id,feature\n1,10')
+                zf.writestr('test.csv', 'id\n2')
+
+        mock_instance.competition_download_files.side_effect = mock_download
+
+        # Download data
+        result = client.download_competition_data("test-comp")
+
+        # Verify
+        assert result is not None
+        assert result == tmp_path / "competitions" / "test-comp"
+        assert (result / "train.csv").exists()
+        assert (result / "test.csv").exists()
+        mock_instance.competition_download_files.assert_called_once()
+
+    def test_download_uses_cache(self, tmp_path):
+        """Test that existing data is reused."""
+        # Setup cached data
+        cache_dir = tmp_path / "competitions" / "test-comp"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "train.csv").write_text("data")
+        (cache_dir / "test.csv").write_text("data")
+
+        # Create client
+        with patch('mle_star.integrations.kaggle_api.KaggleApi'):
+            client = KaggleAPIClient()
+            client.data_cache_dir = tmp_path / "competitions"
+
+            result = client.download_competition_data("test-comp")
+
+            # Should return cached path without calling API
+            assert result == cache_dir
+
+    def test_download_unauthenticated(self):
+        """Test download fails gracefully when not authenticated."""
+        with patch('mle_star.integrations.kaggle_api.KaggleApi') as mock_api:
+            mock_api.return_value.authenticate.side_effect = OSError("No credentials")
+
+            client = KaggleAPIClient()
+            result = client.download_competition_data("test-comp")
+
+            assert result is None
+
+    def test_get_cached_data_dir_exists(self, tmp_path):
+        """Test retrieving cached data directory."""
+        # Setup cache
+        cache_dir = tmp_path / "competitions" / "titanic"
+        cache_dir.mkdir(parents=True)
+        (cache_dir / "train.csv").write_text("data")
+
+        with patch('mle_star.integrations.kaggle_api.KaggleApi'):
+            client = KaggleAPIClient()
+            client.data_cache_dir = tmp_path / "competitions"
+
+            result = client.get_cached_data_dir("titanic")
+
+            assert result == cache_dir
+
+    def test_get_cached_data_dir_not_exists(self, tmp_path):
+        """Test get_cached_data_dir when data doesn't exist."""
+        with patch('mle_star.integrations.kaggle_api.KaggleApi'):
+            client = KaggleAPIClient()
+            client.data_cache_dir = tmp_path / "competitions"
+
+            result = client.get_cached_data_dir("nonexistent")
+
+            assert result is None
+
+
+class TestSubmissionFormatDetection:
+    """Test submission format auto-detection."""
+
+    def test_detect_csv_format(self, tmp_path):
+        """Test detecting CSV format."""
+        data_dir = tmp_path / "comp"
+        data_dir.mkdir()
+        (data_dir / "sample_submission.csv").write_text("id,target\n1,0")
+
+        from mle_star.tasks.kaggle_task import _detect_submission_format
+
+        format_type = _detect_submission_format(data_dir)
+        assert format_type == 'csv'
+
+    def test_detect_json_format(self, tmp_path):
+        """Test detecting JSON format."""
+        data_dir = tmp_path / "comp"
+        data_dir.mkdir()
+        (data_dir / "sample_submission.json").write_text('{"test": "data"}')
+
+        from mle_star.tasks.kaggle_task import _detect_submission_format
+
+        format_type = _detect_submission_format(data_dir)
+        assert format_type == 'json'
+
+    def test_detect_alternative_name(self, tmp_path):
+        """Test detecting with alternative file names."""
+        data_dir = tmp_path / "comp"
+        data_dir.mkdir()
+        (data_dir / "sample_sub.txt").write_text("sample")
+
+        from mle_star.tasks.kaggle_task import _detect_submission_format
+
+        format_type = _detect_submission_format(data_dir)
+        assert format_type == 'txt'
+
+    def test_fallback_to_csv(self, tmp_path):
+        """Test fallback when no submission file found."""
+        data_dir = tmp_path / "comp"
+        data_dir.mkdir()
+
+        from mle_star.tasks.kaggle_task import _detect_submission_format
+
+        format_type = _detect_submission_format(data_dir)
+        assert format_type == 'csv'  # Default fallback
+
+
+class TestFullAutomation:
+    """Test complete automation workflow."""
+
+    @patch('mle_star.tasks.kaggle_task.KaggleAPIClient')
+    def test_kaggle_task_auto_download(self, mock_client_class, tmp_path):
+        """Test KaggleTask auto-downloads data when data_dir=None."""
+        # Setup mock
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+
+        mock_data_dir = tmp_path / "cache" / "titanic"
+        mock_data_dir.mkdir(parents=True)
+        (mock_data_dir / "train.csv").write_text("data")
+        (mock_data_dir / "sample_submission.csv").write_text("id,target\n1,0")
+
+        mock_client.get_cached_data_dir.return_value = None
+        mock_client.download_competition_data.return_value = mock_data_dir
+        mock_client.is_authenticated.return_value = False
+
+        # Create task without data_dir
+        task = KaggleTask(
+            competition_name="titanic",
+            data_dir=None,  # Should trigger auto-download
+            auto_enrich=False  # Skip enrichment for this test
+        )
+
+        assert task.data_dir == mock_data_dir
+        assert task.submission_format == 'csv'
+        mock_client.download_competition_data.assert_called_with("titanic")
+
+    @patch('mle_star.tasks.kaggle_task.KaggleAPIClient')
+    def test_kaggle_task_uses_cached_data(self, mock_client_class, tmp_path):
+        """Test KaggleTask uses cached data if available."""
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+
+        cached_dir = tmp_path / "cache" / "titanic"
+        cached_dir.mkdir(parents=True)
+        (cached_dir / "train.csv").write_text("data")
+        (cached_dir / "sample_submission.csv").write_text("id,target\n1,0")
+
+        mock_client.get_cached_data_dir.return_value = cached_dir
+        mock_client.is_authenticated.return_value = False
+
+        task = KaggleTask(
+            competition_name="titanic",
+            data_dir=None,
+            auto_enrich=False
+        )
+
+        assert task.data_dir == cached_dir
+        assert task.submission_format == 'csv'
+        # Should NOT call download (cache hit)
+        mock_client.download_competition_data.assert_not_called()
+
+    def test_backward_compatibility_manual_data_dir(self, tmp_path):
+        """Test that manual data_dir still works."""
+        data_dir = tmp_path / "my_data"
+        data_dir.mkdir()
+        (data_dir / "sample_submission.csv").write_text("id,target\n1,0")
+
+        task = KaggleTask(
+            competition_name="test",
+            data_dir=data_dir,  # Manual override
+            auto_enrich=False
+        )
+
+        assert task.data_dir == data_dir
+        assert task.submission_format == 'csv'
+
+    @patch('mle_star.tasks.kaggle_task.KaggleAPIClient')
+    def test_download_failure_creates_placeholder(self, mock_client_class, tmp_path):
+        """Test graceful handling when download fails."""
+        mock_client = Mock()
+        mock_client_class.return_value = mock_client
+
+        mock_client.get_cached_data_dir.return_value = None
+        mock_client.download_competition_data.return_value = None  # Download failed
+        mock_client.is_authenticated.return_value = False
+
+        # Create task - should not crash
+        task = KaggleTask(
+            competition_name="titanic",
+            data_dir=None,
+            auto_enrich=False
+        )
+
+        # Should create placeholder directory
+        assert task.data_dir.exists()
+        assert task.data_dir.name == "titanic"

@@ -121,57 +121,62 @@ See [Kaggle API Documentation](https://www.kaggle.com/docs/api#authentication) f
 
 ## Quick Start
 
+**Kaggle Competition - Minimal Example:**
+
+```python
+import asyncio
+from mle_star.api.client import MLEStarClient
+
+async def main():
+    async with MLEStarClient.from_env() as client:
+        # Just competition name - everything else is automatic!
+        result = await client.execute_kaggle_competition("titanic")
+
+        print(f"Status: {result['status']}")
+        if result['status'] == 'success':
+            print(f"Score: {result['result']['verification']['score']:.4f}")
+
+asyncio.run(main())
+```
+
+**Custom ML Task:**
+
 ```python
 import asyncio
 from mle_star.api.client import MLEStarClient
 from mle_star.tasks.task import Task, TaskType
 
 async def main():
-    # Initialize client
-    client = MLEStarClient.from_env()
+    async with MLEStarClient.from_env() as client:
+        task = Task(
+            description="Train a classifier on the Iris dataset with accuracy > 0.95",
+            task_type=TaskType.CLASSIFICATION,
+            success_criteria=["Accuracy > 0.95", "Code runs without errors"]
+        )
 
-    # Define task
-    task = Task(
-        description="Train a classifier on the Iris dataset with accuracy > 0.95",
-        task_type=TaskType.CLASSIFICATION,
-        success_criteria=["Accuracy > 0.95", "Code runs without errors"]
-    )
+        result = await client.execute_task(task)
 
-    # Execute task
-    result = await client.execute_task(task)
+        print(f"Status: {result['status']}")
+        if result['status'] == 'success':
+            print(f"Score: {result['result']['verification']['score']}")
 
-    print(f"Status: {result['status']}")
-    if result['status'] == 'success':
-        print(f"Score: {result['result']['verification']['score']}")
-
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(main())
 ```
 
 ## Examples
 
-### Basic Task Execution
+### Kaggle Competition - Full Automation
 
-See the Quick Start section above for a simple classification task example.
-
-### Kaggle Competition with Auto-Enrichment
-
-**NEW**: Minimal setup - framework automatically retrieves competition info and profiles dataset!
+**Zero manual setup!** Just provide the competition name:
 
 ```python
 import asyncio
-from pathlib import Path
 from mle_star.api.client import MLEStarClient
 
 async def main():
     async with MLEStarClient.from_env() as client:
-        # That's it! Just provide competition name and data directory
-        result = await client.execute_kaggle_competition(
-            competition_name="titanic",
-            data_dir=Path("./data/titanic"),
-            evaluation_metric="accuracy"
-            # No manual description needed - auto-enrichment handles it!
-        )
+        # Minimal API - just competition name!
+        result = await client.execute_kaggle_competition("titanic")
 
         print(f"Status: {result['status']}")
         if result['status'] == 'success':
@@ -182,19 +187,28 @@ asyncio.run(main())
 
 **What Happens Automatically:**
 
-1. **Kaggle API Fetch** (if credentials configured):
+1. **Data Download** (if data_dir not provided):
+   - Downloads competition data to `~/.cache/mle_star/competitions/{competition_name}/`
+   - Reuses cached data on subsequent runs
+   - Automatic unzip and file extraction
+
+2. **Kaggle API Fetch** (if credentials configured):
    - Competition title, description, and requirements
-   - Evaluation metric details
+   - Auto-detects evaluation metric (accuracy, mse, auc, etc.)
    - Submission format and deadlines
 
-2. **Dataset Profiling**:
+3. **Submission Format Detection**:
+   - Auto-detects from sample_submission file extension
+   - Supports CSV, JSON, and other formats
+
+4. **Dataset Profiling**:
    - Analyzes train.csv structure (891 rows × 12 columns for Titanic)
    - Detects data types (int64, float64, object)
    - Calculates missing values (Age: 19.9% missing)
    - Identifies target column (Survived)
    - Samples first rows for context
 
-3. **Rich Task Description Generation**:
+5. **Rich Task Description Generation**:
    ```
    Kaggle Competition: titanic
    Objective: Titanic - Machine Learning from Disaster
@@ -226,44 +240,63 @@ python examples/kaggle_competition.py
 python examples/mws_ai_agents_competition.py
 ```
 
-**Before** (hardcoded 372-line description):
+**Before** (manual setup):
 ```python
+# Download data manually:
+# $ kaggle competitions download -c mws-ai-agents-2026 -p ./data/mws_ai_agents
+# $ unzip mws-ai-agents-2026.zip -d ./data/mws_ai_agents
+
 description = """
 Solve the MWS AI Agents competition...
 [372 lines of manually written task description]
 """
 result = await client.execute_kaggle_competition(
-    "mws-ai-agents-2026", data_dir, "mse", description=description
+    "mws-ai-agents-2026",
+    Path("./data/mws_ai_agents"),
+    "mse",
+    description=description
 )
 ```
 
-**After** (auto-enrichment):
+**After** (full automation):
 ```python
-result = await client.execute_kaggle_competition(
-    "mws-ai-agents-2026",
-    Path("./data/mws_ai_agents"),
-    "mse"
-    # Framework retrieves everything automatically!
-)
+# Zero manual setup!
+result = await client.execute_kaggle_competition("mws-ai-agents-2026")
+# Framework automatically:
+# - Downloads data to cache
+# - Auto-detects metric (mse)
+# - Auto-detects format (csv)
+# - Generates rich description
 ```
 
 **Advanced Options:**
 
 ```python
-# Option 1: Disable auto-enrichment (minimal description)
+# Option 1: Manual data directory
 result = await client.execute_kaggle_competition(
-    competition_name="titanic",
-    data_dir=Path("./data/titanic"),
-    evaluation_metric="accuracy",
+    "titanic",
+    data_dir=Path("./my_data/titanic")
+)
+
+# Option 2: Manual metric override
+result = await client.execute_kaggle_competition(
+    "titanic",
+    evaluation_metric="f1"
+)
+
+# Option 3: Disable auto-enrichment
+result = await client.execute_kaggle_competition(
+    "titanic",
     auto_enrich=False
 )
 
-# Option 2: Manual description override (backward compatible)
+# Option 4: Custom description (full manual control)
 result = await client.execute_kaggle_competition(
-    competition_name="titanic",
+    "titanic",
     data_dir=Path("./data/titanic"),
     evaluation_metric="accuracy",
-    description="Custom task description with specific requirements..."
+    description="Custom task description...",
+    auto_enrich=False
 )
 ```
 
@@ -278,63 +311,6 @@ python examples/custom_ml_task.py
 ```
 
 See [examples/custom_ml_task.py](examples/custom_ml_task.py)
-
-## Implementation Status
-
-### ✅ Phase 1: Foundation (Complete)
-- [x] Project structure and setup files
-- [x] Message protocol (core/message.py)
-- [x] Base agent interface (core/base_agent.py)
-- [x] State manager (core/state_manager.py)
-- [x] Configuration management (utils/config.py)
-
-### ✅ Phase 2: Model Integration (Complete)
-- [x] Base model interface (models/base_model.py)
-- [x] OpenRouter client (models/openrouter_client.py)
-- [x] Local model with 4-bit quantization (models/local_model.py)
-- [x] Model pool for memory management (models/model_pool.py)
-
-### 🚧 Phase 3-10: In Progress
-- [ ] Phase 3: Agent implementations
-- [ ] Phase 4: STAR workflow orchestration
-- [ ] Phase 5: Execution & security
-- [ ] Phase 6: Monitoring & protection
-- [ ] Phase 7: Public API & examples
-- [ ] Phase 8: Configuration files
-- [ ] Phase 9: Testing
-- [ ] Phase 10: Documentation
-
-## Project Structure
-
-```
-mle_star/
-├── core/              # Core framework (✅ Complete)
-│   ├── message.py    # Message protocol
-│   ├── base_agent.py # Base agent class
-│   ├── state_manager.py # State management
-│   └── workflow.py   # STAR workflow
-├── models/           # Model integration (✅ Complete)
-│   ├── base_model.py        # Model interface
-│   ├── openrouter_client.py # API client
-│   ├── local_model.py       # Local models
-│   └── model_pool.py        # Memory management
-├── agents/           # Agent implementations (🚧 Pending)
-│   ├── planner.py   # Planner agent
-│   ├── executor.py  # Executor agent
-│   └── verifier.py  # Verifier agent
-├── execution/        # Secure execution (🚧 Pending)
-│   ├── sandbox.py   # Code sandbox
-│   └── validator.py # Code validation
-├── monitoring/       # Monitoring (🚧 Pending)
-│   ├── metrics.py
-│   ├── logger.py
-│   └── guardrails.py
-├── tasks/            # Task management (🚧 Pending)
-│   ├── task.py
-│   └── kaggle_task.py
-└── api/              # Public API (🚧 Pending)
-    └── client.py
-```
 
 ## Configuration
 

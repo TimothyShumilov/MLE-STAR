@@ -47,6 +47,10 @@ class KaggleAPIClient:
         self.cache_dir = cache_dir or Path.home() / '.cache' / 'mle_star' / 'kaggle'
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
+        # Competition data storage (separate from API response cache)
+        self.data_cache_dir = Path.home() / '.cache' / 'mle_star' / 'competitions'
+        self.data_cache_dir.mkdir(parents=True, exist_ok=True)
+
         # Cache TTL: 24 hours (competitions don't change often)
         self.cache_ttl = timedelta(hours=24)
 
@@ -331,3 +335,179 @@ class KaggleAPIClient:
 
         except Exception as e:
             logger.warning(f"Failed to clear cache: {e}")
+
+    def parse_evaluation_metric(self, kaggle_info: Dict[str, Any]) -> Optional[str]:
+        """
+        Extract standardized metric name from Kaggle metadata.
+
+        Maps Kaggle metric names to framework standard names:
+        - "AUC" → "auc"
+        - "Accuracy" → "accuracy"
+        - "Mean Squared Error" / "RMSE" → "mse"
+        - "Log Loss" → "logloss"
+
+        Args:
+            kaggle_info: Competition metadata dictionary from fetch_competition_metadata()
+
+        Returns:
+            Standardized metric name (lowercase), or None if not detected
+
+        Examples:
+            >>> client = KaggleAPIClient()
+            >>> kaggle_info = {'evaluation': 'AUC'}
+            >>> client.parse_evaluation_metric(kaggle_info)
+            'auc'
+        """
+        if not kaggle_info:
+            return None
+
+        # Try 'evaluation' field first (common in API responses)
+        metric_raw = kaggle_info.get('evaluation', kaggle_info.get('evaluationMetric', ''))
+
+        if not metric_raw or not isinstance(metric_raw, str):
+            return None
+
+        metric_lower = metric_raw.lower().strip()
+
+        # Mapping dictionary for common Kaggle metrics
+        metric_mappings = {
+            'auc': 'auc',
+            'accuracy': 'accuracy',
+            'mean squared error': 'mse',
+            'rmse': 'rmse',
+            'mae': 'mae',
+            'mean absolute error': 'mae',
+            'log loss': 'logloss',
+            'logloss': 'logloss',
+            'f1': 'f1',
+            'f1 score': 'f1',
+            'roc': 'roc',
+            'mape': 'mape',
+            'r2': 'r2',
+            'r-squared': 'r2',
+            'precision': 'precision',
+            'recall': 'recall',
+        }
+
+        # Direct match
+        if metric_lower in metric_mappings:
+            logger.debug(f"Metric matched directly: '{metric_raw}' → '{metric_mappings[metric_lower]}'")
+            return metric_mappings[metric_lower]
+
+        # Partial match (contains key)
+        for key, value in metric_mappings.items():
+            if key in metric_lower:
+                logger.debug(f"Metric matched partially: '{metric_raw}' contains '{key}' → '{value}'")
+                return value
+
+        # Fallback: return cleaned raw metric
+        cleaned = metric_lower.replace(' ', '_').replace('-', '_')
+        logger.debug(f"Metric not recognized, using cleaned version: '{metric_raw}' → '{cleaned}'")
+        return cleaned
+
+    def download_competition_data(
+        self,
+        competition_name: str,
+        force: bool = False
+    ) -> Optional[Path]:
+        """
+        Download competition data files to local cache.
+
+        Downloads train.csv, test.csv, and other competition files to
+        ~/.cache/mle_star/competitions/{competition_name}/ directory.
+        Reuses cached data if already downloaded (unless force=True).
+
+        Args:
+            competition_name: Kaggle competition identifier (e.g., 'titanic')
+            force: If True, re-download even if data exists
+
+        Returns:
+            Path to data directory, or None if download fails
+
+        Examples:
+            >>> client = KaggleAPIClient()
+            >>> data_dir = client.download_competition_data("titanic")
+            >>> print(data_dir)
+            Path('~/.cache/mle_star/competitions/titanic')
+        """
+        if not self.is_authenticated():
+            logger.warning(f"Cannot download data for {competition_name}: Kaggle API not authenticated")
+            return None
+
+        # Data directory for this competition
+        data_dir = self.data_cache_dir / competition_name
+
+        # Check if already downloaded (unless force=True)
+        if not force and data_dir.exists():
+            # Verify essential files exist
+            train_csv = data_dir / 'train.csv'
+            test_csv = data_dir / 'test.csv'
+
+            if train_csv.exists() and test_csv.exists():
+                logger.info(f"✓ Using cached data for {competition_name} at {data_dir}")
+                return data_dir
+            else:
+                logger.info(f"Cache incomplete for {competition_name}, re-downloading...")
+
+        # Download data
+        try:
+            logger.info(f"Downloading data for {competition_name}...")
+
+            # Create data directory
+            data_dir.mkdir(parents=True, exist_ok=True)
+
+            # Use Kaggle API to download files
+            self._api.competition_download_files(
+                competition_name,
+                path=str(data_dir),
+                quiet=False  # Show progress
+            )
+
+            # Unzip downloaded files
+            import zipfile
+            zip_file = data_dir / f"{competition_name}.zip"
+
+            if zip_file.exists():
+                logger.info(f"Extracting files from {zip_file.name}...")
+
+                with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+                    zip_ref.extractall(data_dir)
+
+                # Clean up zip file
+                zip_file.unlink()
+
+                logger.info(f"✓ Downloaded data for {competition_name} to {data_dir}")
+                return data_dir
+            else:
+                logger.error(f"Download failed: No zip file found for {competition_name}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Failed to download data for {competition_name}: {e}")
+            return None
+
+    def get_cached_data_dir(self, competition_name: str) -> Optional[Path]:
+        """
+        Get path to cached data directory (if exists).
+
+        Checks if competition data has already been downloaded to cache.
+
+        Args:
+            competition_name: Kaggle competition identifier
+
+        Returns:
+            Path to cached data directory, or None if not cached
+
+        Examples:
+            >>> client = KaggleAPIClient()
+            >>> cached_dir = client.get_cached_data_dir("titanic")
+            >>> if cached_dir:
+            ...     print(f"Data already cached at {cached_dir}")
+        """
+        data_dir = self.data_cache_dir / competition_name
+
+        # Check if directory exists and has train.csv
+        if data_dir.exists() and (data_dir / 'train.csv').exists():
+            return data_dir
+
+        return None

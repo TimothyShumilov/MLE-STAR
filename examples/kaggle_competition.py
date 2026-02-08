@@ -25,52 +25,26 @@ async def main():
     print("=" * 70)
     print()
 
-    # Configuration
+    # Configuration - just competition name!
     competition_name = "titanic"
-    data_dir = Path("./data/titanic")  # Adjust to your data directory
-    evaluation_metric = "accuracy"
 
     print(f"Competition: {competition_name}")
-    print(f"Data Directory: {data_dir}")
-    print(f"Metric: {evaluation_metric}")
     print()
 
-    # Check if data directory exists
-    if not data_dir.exists():
-        print(f"⚠ Warning: Data directory not found: {data_dir}")
-        print()
-        print("To run this example:")
-        print("1. Download Kaggle competition data")
-        print("2. Place train.csv, test.csv in data directory")
-        print("3. Update data_dir path in this script")
-        print()
-        print("Continuing with example (may fail without data)...")
-        print()
+    # Full automation! Framework will automatically:
+    # - Download competition data to ~/.cache/mle_star/competitions/titanic/
+    # - Fetch competition description from Kaggle API
+    # - Auto-detect evaluation metric (accuracy for Titanic)
+    # - Auto-detect submission format (csv)
+    # - Profile dataset structure
+    # - Generate rich task context for agents
 
-    # Create custom task description for better results
-    description = f"""
-    Solve the Kaggle {competition_name} competition.
-
-    Task: Predict passenger survival on the Titanic.
-
-    Requirements:
-    1. Load train.csv and test.csv from {data_dir}
-    2. Perform exploratory data analysis (EDA)
-    3. Handle missing values appropriately
-    4. Feature engineering:
-       - Extract title from name
-       - Create family size feature
-       - Bin age into categories
-       - Engineer new features as needed
-    5. Train a classification model (try RandomForest, XGBoost, or ensemble)
-    6. Make predictions on test set
-    7. Create submission.csv in the format required by Kaggle
-
-    Target: Achieve {evaluation_metric} > 0.80
-    """
-
-    print("Task Description:")
-    print(description)
+    print("Full automation enabled:")
+    print("- Data auto-downloaded to cache")
+    print("- Competition info fetched from Kaggle API")
+    print("- Evaluation metric auto-detected")
+    print("- Submission format auto-detected")
+    print("- Dataset profiled automatically")
     print()
 
     # Initialize client
@@ -82,18 +56,24 @@ async def main():
             print("✓ Client initialized")
             print()
 
-            # Execute Kaggle competition
+            # Execute Kaggle competition - minimal API!
             print("=" * 70)
             print("Executing STAR Workflow for Kaggle Competition")
             print("=" * 70)
             print()
 
-            result = await client.execute_kaggle_competition(
-                competition_name=competition_name,
-                data_dir=data_dir,
-                evaluation_metric=evaluation_metric,
-                description=description
-            )
+            result = await client.execute_kaggle_competition(competition_name)
+            # That's it! Just competition name.
+            # - data_dir auto-downloaded to cache
+            # - evaluation_metric auto-detected
+            # - submission_format auto-detected
+            # - description auto-generated
+
+            # Optional: Provide manual data directory
+            # result = await client.execute_kaggle_competition(
+            #     competition_name,
+            #     data_dir=Path("./my_data/titanic")
+            # )
 
             # Display results
             print()

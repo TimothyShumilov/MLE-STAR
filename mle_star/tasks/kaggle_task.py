@@ -10,6 +10,46 @@ from mle_star.utils.data_profiler import DatasetProfiler
 logger = logging.getLogger(__name__)
 
 
+def _detect_submission_format(data_dir: Path) -> str:
+    """
+    Auto-detect submission format from sample_submission file.
+
+    Scans the data directory for common submission file patterns
+    (sample_submission.*, submission_sample.*, etc.) and returns
+    the file extension.
+
+    Args:
+        data_dir: Directory containing competition data
+
+    Returns:
+        File extension ('csv', 'json', 'txt', etc.) or 'csv' as default
+
+    Examples:
+        >>> _detect_submission_format(Path("./data/titanic"))
+        'csv'
+        >>> _detect_submission_format(Path("./data/json_comp"))
+        'json'
+    """
+    # Common submission file name patterns
+    submission_patterns = [
+        'sample_submission.*',
+        'sample_sub.*',
+        'submission_sample.*'
+    ]
+
+    for pattern in submission_patterns:
+        matches = list(data_dir.glob(pattern))
+        if matches:
+            # Get file extension (remove leading dot)
+            ext = matches[0].suffix.lstrip('.')
+            logger.info(f"✓ Auto-detected submission format: {ext}")
+            return ext
+
+    # Default to CSV if no submission file found
+    logger.warning("Could not detect submission format, defaulting to 'csv'")
+    return 'csv'
+
+
 class KaggleTask(MLTask):
     """
     Adapter for Kaggle competition tasks.
@@ -31,32 +71,71 @@ class KaggleTask(MLTask):
     def __init__(
         self,
         competition_name: str,
-        data_dir: Path,
-        evaluation_metric: str,
+        data_dir: Optional[Path] = None,
+        evaluation_metric: Optional[str] = None,
         description: Optional[str] = None,
         auto_enrich: bool = True,
-        submission_format: str = "csv"
+        submission_format: Optional[str] = None
     ):
         """
-        Initialize Kaggle task with optional auto-enrichment.
+        Initialize Kaggle task with auto-download and auto-detection.
 
         Args:
             competition_name: Name of the Kaggle competition
-            data_dir: Directory containing competition data
-            evaluation_metric: Competition evaluation metric
+            data_dir: Directory containing competition data. If None, auto-downloads
+                     to ~/.cache/mle_star/competitions/{competition_name}/
+            evaluation_metric: Competition evaluation metric. If None, auto-detected
+                              from Kaggle API metadata.
             description: Optional task description (overrides auto-generation)
             auto_enrich: If True, automatically fetch competition metadata
                         and profile dataset. If False, use minimal description.
-            submission_format: Format for submission file (default: csv)
+            submission_format: Format for submission file. If None, auto-detected
+                             from sample_submission file extension.
         """
-        # Store attributes early for use in helper methods
+        # Store competition name early
         self.competition_name = competition_name
+
+        # Step 0: Handle data directory (auto-download if None)
+        if data_dir is None:
+            logger.info(f"No data_dir provided, attempting auto-download for {competition_name}")
+
+            kaggle_client = KaggleAPIClient()
+
+            # Try to get cached data first
+            cached_dir = kaggle_client.get_cached_data_dir(competition_name)
+
+            if cached_dir:
+                logger.info(f"✓ Using cached data at {cached_dir}")
+                data_dir = cached_dir
+            else:
+                # Download data
+                downloaded_dir = kaggle_client.download_competition_data(competition_name)
+
+                if downloaded_dir:
+                    data_dir = downloaded_dir
+                else:
+                    # Download failed - create placeholder and warn
+                    logger.error(
+                        f"Failed to download data for {competition_name}. "
+                        "Please provide data_dir manually or check Kaggle credentials."
+                    )
+                    # Use placeholder to continue (task will fail later with clear error)
+                    data_dir = Path.home() / '.cache' / 'mle_star' / 'competitions' / competition_name
+                    data_dir.mkdir(parents=True, exist_ok=True)
+
         self.data_dir = Path(data_dir)
-        self.evaluation_metric = evaluation_metric
+
+        # Step 0.5: Auto-detect submission format if not provided
+        if submission_format is None and self.data_dir.exists():
+            submission_format = _detect_submission_format(self.data_dir)
+        elif submission_format is None:
+            submission_format = 'csv'  # Default fallback
+
         self.submission_format = submission_format
 
         # Step 1: Fetch Kaggle competition metadata (if auto_enrich=True)
         kaggle_info = {}
+        kaggle_client = None
         if auto_enrich:
             try:
                 kaggle_client = KaggleAPIClient()
@@ -71,6 +150,22 @@ class KaggleTask(MLTask):
                     )
             except Exception as e:
                 logger.warning(f"Kaggle API failed: {e}")
+
+        # Step 1.5: Auto-detect evaluation_metric if not provided
+        if evaluation_metric is None:
+            if kaggle_info and kaggle_client:
+                detected_metric = kaggle_client.parse_evaluation_metric(kaggle_info)
+                if detected_metric:
+                    evaluation_metric = detected_metric
+                    logger.info(f"✓ Auto-detected evaluation metric: {evaluation_metric}")
+                else:
+                    logger.warning("Could not auto-detect metric from Kaggle API, using 'accuracy' as default")
+                    evaluation_metric = "accuracy"
+            else:
+                logger.warning("No metric provided and Kaggle API unavailable, defaulting to 'accuracy'")
+                evaluation_metric = "accuracy"
+
+        self.evaluation_metric = evaluation_metric
 
         # Step 2: Profile dataset (if auto_enrich=True and data exists)
         dataset_profile = {}

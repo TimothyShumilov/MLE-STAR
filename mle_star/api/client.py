@@ -232,38 +232,50 @@ class MLEStarClient:
     async def execute_kaggle_competition(
         self,
         competition_name: str,
-        data_dir: Path,
-        evaluation_metric: str,
+        data_dir: Optional[Path] = None,
+        evaluation_metric: Optional[str] = None,
         description: Optional[str] = None,
         auto_enrich: bool = True
     ) -> Dict[str, Any]:
         """
-        Execute a Kaggle competition task with optional auto-enrichment.
+        Execute a Kaggle competition task with full automation.
+
+        Automatically downloads data, detects evaluation metric, and detects
+        submission format when not provided. Requires Kaggle API credentials
+        for auto-download feature (~/.kaggle/kaggle.json).
 
         Args:
-            competition_name: Name of the competition
-            data_dir: Directory containing competition data
-            evaluation_metric: Competition evaluation metric
+            competition_name: Name of the competition (e.g., "titanic")
+            data_dir: Directory containing competition data. If None, auto-downloads
+                     to ~/.cache/mle_star/competitions/{competition_name}/
+            evaluation_metric: Competition evaluation metric. If None, auto-detected
+                              from Kaggle API metadata.
             description: Optional task description (overrides auto-generation)
             auto_enrich: If True, automatically fetch competition metadata
                         and profile dataset. If False, use minimal description.
 
         Returns:
-            Result dictionary
+            Result dictionary with status, result, and metadata
 
         Examples:
-            >>> # With auto-enrichment (recommended)
+            >>> # Minimal usage - just competition name! (recommended)
+            >>> result = await client.execute_kaggle_competition("titanic")
+            >>>
+            >>> # With manual data directory (backward compatible)
             >>> result = await client.execute_kaggle_competition(
             ...     "titanic",
-            ...     Path("./data/titanic"),
-            ...     "accuracy"
+            ...     data_dir=Path("./my_data/titanic")
             ... )
             >>>
-            >>> # With manual description
+            >>> # With manual metric override
             >>> result = await client.execute_kaggle_competition(
             ...     "titanic",
-            ...     Path("./data/titanic"),
-            ...     "accuracy",
+            ...     evaluation_metric="f1"
+            ... )
+            >>>
+            >>> # With custom description
+            >>> result = await client.execute_kaggle_competition(
+            ...     "titanic",
             ...     description="Custom task description",
             ...     auto_enrich=False
             ... )

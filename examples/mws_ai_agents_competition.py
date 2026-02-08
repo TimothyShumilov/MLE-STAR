@@ -23,39 +23,19 @@ from mle_star.api.client import MLEStarClient
 
 
 async def main():
-    """Run MWS AI Agents 2026 competition with auto-enrichment."""
+    """Run MWS AI Agents 2026 competition with full automation."""
     print("=" * 70)
     print("MLE-STAR: MWS AI Agents 2026 Competition")
     print("Rental Property Occupancy Prediction (Regression)")
-    print("Using automatic competition info retrieval")
+    print("Full automation - just competition name!")
     print("=" * 70)
     print()
 
-    # Configuration
+    # Configuration - just competition name!
     competition_name = "mws-ai-agents-2026"
-    data_dir = Path("./data/mws_ai_agents")
-    metric = "mse"  # Mean Squared Error
 
     print(f"Competition: {competition_name}")
-    print(f"Data Directory: {data_dir}")
-    print(f"Metric: {metric} (lower is better)")
     print()
-
-    # Check if data directory exists
-    if not data_dir.exists():
-        print(f"⚠ Data directory not found: {data_dir}")
-        print()
-        print("To run this example:")
-        print("1. Download competition data from Kaggle:")
-        print(f"   kaggle competitions download -c {competition_name} -p {data_dir}")
-        print(f"2. Unzip the data:")
-        print(f"   unzip {data_dir}/{competition_name}.zip -d {data_dir}")
-        print("3. Ensure you have train.csv, test.csv, and sample_submission.csv")
-        print()
-        print("Note: Auto-enrichment will work even without Kaggle credentials,")
-        print("      using dataset profiling only.")
-        print()
-        return 1
 
     # Initialize client
     print("Initializing MLE-STAR client...")
@@ -66,35 +46,41 @@ async def main():
             print("✓ Client initialized")
             print()
 
-            # Execute with auto-enrichment (no manual description needed!)
+            # Execute with full automation!
             print("=" * 70)
             print("Executing STAR Workflow for Kaggle Competition")
             print("=" * 70)
             print()
-            print("Auto-enrichment will:")
-            print("  1. Fetch competition metadata from Kaggle API (if credentials available)")
-            print("  2. Profile the dataset (columns, types, missing values, sample data)")
-            print("  3. Generate rich task description automatically")
-            print("  4. Pass structured context to agents")
+            print("Full automation will:")
+            print("  1. Download competition data to cache (~/.cache/mle_star/competitions/)")
+            print("  2. Fetch competition metadata from Kaggle API")
+            print("  3. Auto-detect evaluation metric (MSE for this competition)")
+            print("  4. Auto-detect submission format (CSV)")
+            print("  5. Profile the dataset (columns, types, missing values, sample data)")
+            print("  6. Generate rich task description automatically")
+            print("  7. Pass structured context to agents")
             print()
             print("This may take 15-30 minutes depending on:")
+            print("  - Data download time (first run only)")
             print("  - Number of iterations (max 5)")
             print("  - Model complexity")
             print("  - Dataset size")
             print()
 
-            # Option 1: Full auto-enrichment (RECOMMENDED)
-            result = await client.execute_kaggle_competition(
-                competition_name=competition_name,
-                data_dir=data_dir,
-                evaluation_metric=metric
-                # That's it! No hardcoded description needed.
-                # Framework automatically:
-                # - Fetches competition metadata from Kaggle API
-                # - Profiles dataset (13 features, types, missing%, sample data)
-                # - Generates enriched task description
-                # - Passes structured context to agents
-            )
+            # Minimal API - just competition name!
+            result = await client.execute_kaggle_competition(competition_name)
+            # That's it! Everything else is automatic:
+            # - data_dir auto-downloaded to cache
+            # - evaluation_metric auto-detected (mse)
+            # - submission_format auto-detected (csv)
+            # - description auto-generated with rich context
+
+            # Optional: Provide manual overrides
+            # result = await client.execute_kaggle_competition(
+            #     competition_name,
+            #     data_dir=Path("./my_data"),
+            #     evaluation_metric="rmse"
+            # )
 
             # Display results
             print()
