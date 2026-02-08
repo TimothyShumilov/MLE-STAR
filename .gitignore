@@ -40,7 +40,6 @@ env/
 .env.local
 
 # Model files and caches
-models/
 *.bin
 *.safetensors
 *.gguf
