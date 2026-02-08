@@ -2,7 +2,7 @@
 
 import re
 import ast
-from typing import List, Dict, Any, Set, Tuple
+from typing import List, Dict, Any, Set, Tuple, Optional
 import logging
 
 
