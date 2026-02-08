@@ -76,11 +76,16 @@ class KaggleAPIClient:
             # Import kaggle module (fails if not installed)
             from kaggle.api.kaggle_api_extended import KaggleApi
 
+            # Debug logging - show what we received
+            logger.info(f"Kaggle credentials provided: username={self.kaggle_username or 'None'}, key={'***' if self.kaggle_key else 'None'}")
+
             # Use passed credentials if available (highest priority)
             if self.kaggle_username and self.kaggle_key:
                 os.environ['KAGGLE_USERNAME'] = self.kaggle_username
                 os.environ['KAGGLE_KEY'] = self.kaggle_key
-                logger.debug("Using Kaggle credentials from client initialization")
+                logger.info("✓ Using Kaggle credentials from config (passed explicitly)")
+            else:
+                logger.warning("No Kaggle credentials passed to KaggleAPIClient - will try env vars or kaggle.json")
 
             # Initialize API (will use env vars or kaggle.json as fallback)
             api = KaggleApi()

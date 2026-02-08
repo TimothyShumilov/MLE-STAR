@@ -83,11 +83,56 @@ async def main():
     # Validate configuration
     if CONFIG['openrouter_api_key'] == 'your_openrouter_api_key_here':
         print("❌ Error: Please update CONFIG['openrouter_api_key'] in the script")
+        print("   Get your key from: https://openrouter.ai/keys")
         return 1
 
-    if CONFIG['kaggle_username'] == 'your_kaggle_username':
-        print("❌ Error: Please update CONFIG['kaggle_username'] and CONFIG['kaggle_key']")
+    # Enhanced Kaggle credential validation
+    kaggle_user = CONFIG.get('kaggle_username', '')
+    kaggle_key = CONFIG.get('kaggle_key', '')
+
+    # Check for placeholder values (case-insensitive)
+    placeholder_patterns = ['your_kaggle', 'placeholder', 'replace', 'todo', 'xxx', 'example']
+    if any(pattern in kaggle_user.lower() for pattern in placeholder_patterns):
+        print("❌ Error: Kaggle username appears to be a placeholder value")
+        print(f"   Current value: {kaggle_user}")
+        print("   Please replace with your actual Kaggle username")
+        print()
+        print("   Get credentials: https://www.kaggle.com/settings → API → Create New Token")
         return 1
+
+    if any(pattern in kaggle_key.lower() for pattern in placeholder_patterns):
+        print("❌ Error: Kaggle API key appears to be a placeholder value")
+        print("   Please replace with your actual Kaggle API key")
+        print()
+        print("   Get credentials: https://www.kaggle.com/settings → API → Create New Token")
+        return 1
+
+    # Check for empty/missing credentials
+    if not kaggle_user or not kaggle_user.strip():
+        print("❌ Error: Kaggle username is empty or not set")
+        print("   Please set CONFIG['kaggle_username'] to your Kaggle username")
+        print()
+        print("   Get credentials: https://www.kaggle.com/settings → API → Create New Token")
+        return 1
+
+    if not kaggle_key or not kaggle_key.strip():
+        print("❌ Error: Kaggle API key is empty or not set")
+        print("   Please set CONFIG['kaggle_key'] to your Kaggle API key")
+        print()
+        print("   Get credentials: https://www.kaggle.com/settings → API → Create New Token")
+        return 1
+
+    # Check credential format (Kaggle keys are 40 characters)
+    if len(kaggle_key) != 40:
+        print("⚠️  Warning: Kaggle API key should be 40 characters long")
+        print(f"   Current length: {len(kaggle_key)} characters")
+        print("   Your key might be incorrect - please verify it from:")
+        print("   https://www.kaggle.com/settings → API → Create New Token")
+        print()
+        # Don't return - let it try anyway in case format changed
+
+    print(f"✓ Using Kaggle credentials for user: {kaggle_user}")
+    print()
 
     print(f"Competition: {COMPETITION_NAME}")
     print()
