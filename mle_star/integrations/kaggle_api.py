@@ -7,6 +7,7 @@ caching, and graceful degradation when credentials are unavailable.
 
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -22,12 +23,11 @@ class KaggleAPIClient:
     to avoid redundant API calls. All methods gracefully handle failures by
     returning empty dicts/lists rather than raising exceptions.
 
-    Authentication:
-        Requires ~/.kaggle/kaggle.json with format:
-        {
-            "username": "your_username",
-            "key": "your_api_key"
-        }
+    Authentication (in order of precedence):
+        1. KAGGLE_API_TOKEN env var (used in Kaggle notebooks):
+           {"username": "your_username", "key": "your_api_key"}
+        2. KAGGLE_USERNAME and KAGGLE_KEY env vars
+        3. ~/.kaggle/kaggle.json file
 
     Examples:
         >>> client = KaggleAPIClient()
@@ -65,6 +65,18 @@ class KaggleAPIClient:
             # Import kaggle module (fails if not installed)
             from kaggle.api.kaggle_api_extended import KaggleApi
 
+            # Check for KAGGLE_API_TOKEN env var (used in Kaggle notebooks)
+            # Format: {"username":"xxx","key":"xxx"}
+            kaggle_token = os.environ.get('KAGGLE_API_TOKEN')
+            if kaggle_token:
+                try:
+                    token_data = json.loads(kaggle_token)
+                    os.environ['KAGGLE_USERNAME'] = token_data.get('username', '')
+                    os.environ['KAGGLE_KEY'] = token_data.get('key', '')
+                    logger.debug("Using KAGGLE_API_TOKEN from environment")
+                except json.JSONDecodeError:
+                    logger.warning("KAGGLE_API_TOKEN is not valid JSON")
+
             # Initialize API
             api = KaggleApi()
             api.authenticate()  # Raises error if credentials not found
@@ -84,7 +96,7 @@ class KaggleAPIClient:
             # Credentials not found
             logger.warning(
                 f"Kaggle credentials not found: {e}. "
-                "Setup ~/.kaggle/kaggle.json to enable auto-enrichment. "
+                "Set KAGGLE_API_TOKEN env var or setup ~/.kaggle/kaggle.json. "
                 "See: https://www.kaggle.com/docs/api#authentication"
             )
             self._authenticated = False
